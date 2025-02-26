@@ -149,16 +149,59 @@ Data convert_int_to_data(int number, unsigned char base, unsigned char number_bi
     Data new_data = build_data_from_int(number, base, number_bits, sign);
 
     return new_data;
-
 }
 Data left_shift(Data src, int n) {
-  Data new_data;
-  // TODO
-  return new_data;
+    Data new_data;
+    int original_value = data_to_int(&src);
+
+    // Perform shift
+    int shifted = original_value << n;
+
+    // Mask to number_bits
+    if (src.number_bits < 32) {
+        unsigned int mask = (1U << src.number_bits) - 1;
+        shifted &= mask;
+    }
+
+    // Build in base 2
+    new_data = build_data_from_int(shifted, 2, src.number_bits, src.sign);
+    return new_data;
 }
 
 Data right_shift(Data src, int n) {
-  Data new_data;
-  // TODO
-  return new_data;
+    Data new_data;
+    int original_value = data_to_int(&src);
+
+    // Sign-extend into 64 bits
+    long long temp64 = (long long)original_value;
+    long long shifted64;
+
+    if (src.sign == 1) {
+        // Arithmetic shift
+        shifted64 = temp64 >> n;
+    } else {
+        // Logical shift: cast to unsigned before shifting
+        unsigned long long utemp64 = (unsigned long long)temp64;
+        shifted64 = (long long)(utemp64 >> n);
+    }
+
+    // Mask & optional sign extension for the final number_bits
+    if (src.number_bits < 32) {
+        unsigned long long mask = ((unsigned long long)1 << src.number_bits) - 1;
+        unsigned long long masked = ((unsigned long long)shifted64) & mask;
+
+        if (src.sign == 1 && src.number_bits <= 32) {
+            unsigned long long signBit = 1ULL << (src.number_bits - 1);
+            if (masked & signBit) {
+                unsigned long long fillMask = ~(((unsigned long long)1 << src.number_bits) - 1);
+                masked |= fillMask;
+            }
+        }
+        shifted64 = (long long)masked;
+    }
+
+    // Build in base 2
+    new_data = build_data_from_int((int)shifted64, 2, src.number_bits, src.sign);
+    return new_data;
 }
+
